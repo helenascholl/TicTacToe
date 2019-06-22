@@ -2,6 +2,15 @@
 
 let game;
 let player;
+let opponentUsername;
+let currentUserUsername;
+let winningPatterns = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 4, 8],
+    [2, 4, 6]
+];
 
 window.addEventListener('load', () => {
     firebase.initializeApp({
@@ -21,6 +30,14 @@ window.addEventListener('load', () => {
         if (user) {
             logInWindow.display = 'none';
             inviteWindow.display = 'block';
+
+            firebase.database().ref('users').once('value').then(snapshot => {
+                for (let account of snapshot.val()) {
+                    if (user.uid === account.uid) {
+                        currentUserUsername = account.username;
+                    }
+                }
+            });
         } else {            
             inviteWindow.display = 'none';
             logInWindow.display = 'block';
@@ -32,6 +49,8 @@ window.addEventListener('load', () => {
 
         container.setAttribute('id', `container${i}`);
         container.setAttribute('class', 'container');
+
+        container.addEventListener('click', selectContainer);
 
         document.getElementById('containers').appendChild(container);
     }
@@ -58,7 +77,8 @@ function addInvitation(snapshotInvitation) {
         firebase.database().ref('users').once('value').then(snapshotUsers => {
             for (let user of snapshotUsers.val()) {
                 if (user.uid === invitation.from) {
-                    h3.textContent = user.username;
+                    opponentUsername = user.username;
+                    h3.textContent = opponentUsername;
                 }
             }
         }).catch(error => {
@@ -81,7 +101,7 @@ function addInvitation(snapshotInvitation) {
 
                     game = `games/${invitation.from}/${invitation.to}`;
                     player = Player.O;
-                    firebase.database().ref(`${game}`).on('child_changed', childChanged);
+                    firebase.database().ref(`${game}`).on('child_changed', drawField);
                 }).catch(error => {
                     console.error(error.message);
                 });
@@ -96,60 +116,89 @@ function addInvitation(snapshotInvitation) {
     }
 }
 
-function selectContainer(change) {
-    if (!change || change === player) {
-        let select = (event) => {
-            firebase.database().ref(`${game}/field`).once('value').then(snapshot => {
-                let players = snapshot.val();
+function selectContainer(event) {
+    firebase.database().ref(`${game}/turn`).once('value').then(snapshotTurn => {
+        if (snapshotTurn.val() === player) {
+            firebase.database().ref(`${game}/field`).once('value').then(snapshotPlayers => {
+                let players = snapshotPlayers.val();
+                let index = parseInt(event.target.id.replace('container', ''));
 
-                players[parseInt(event.target.id.replace('container', ''))] = player;
-                firebase.database().ref(`${game}/field`).set(players).catch(error => {
-                    console.error(error.message);
-                });
+                if (players[index] === Player.noPlayer) {
+                    players[index] = player;
+
+                    firebase.database().ref(`${game}/field`).set(players).then(() => {
+                        let turn = Player.X;
+    
+                        if (player === Player.X) {
+                            turn = Player.O;
+                        }
+
+                        for (let pattern of winningPatterns) {
+                            let won = true;
+    
+                            for (let i = 0; i < pattern.length && won; i++) {
+                                if (players[pattern[i]] !== player) {
+                                    won = false;
+                                }
+                            }
+
+                            if (won) {
+                                turn = Player.noPlayer;
+
+                                firebase.database().ref(`${game}/winner`).set(player).catch(error => {
+                                    console.error(error.message);
+                                });
+                            } else {
+                                let isFull = true;
+
+                                for (let container of players) {
+                                    if (container === Player.noPlayer) {
+                                        isFull = false;
+                                    }
+                                }
+
+                                if (isFull) {
+                                    turn = Player.noPlayer;
+
+                                    firebase.database().ref(`${game}/winner`).set(Player.noPlayer).catch(error => {
+                                        console.error(error.message);
+                                    });
+                                }
+                            }
+                        }
+                
+                        firebase.database().ref(`${game}/turn`).set(turn).catch(error => {
+                            console.error(error.message);
+                        });
+                    }).catch(error => {
+                        console.error(error.message);
+                    });
+                }
+
             }).catch(error => {
                 console.error(error.message);
             });
-
-            for (let container of document.getElementsByClassName('container')) {
-                container.removeEventListener('click', select);
-            }
-
-            if (player === Player.X) {
-                player = Player.O;
-            } else {
-                player = Player.X;
-            }
-    
-            firebase.database().ref(`${game}/turn`).set(player).catch(error => {
-                console.error(error.message);
-            });
         }
-
-        console.log('your turn');
-
-        for (let container of document.getElementsByClassName('container')) {
-            container.addEventListener('click', select);
-        }
-
-        // TODO: only one player can select; icons
-    }
+    });
 }
 
-function drawField(change) {
-    for (let player of change) {
-        switch (player) {
-            case Player.noPlayer:
-                console.log('_');
-                break;
+function drawField(snapshot) {
+    let change = snapshot.val();
 
-            case Player.X:
-                console.log('X');
-                break;
-
-            case Player.O:
-                console.log('O');
-                break;
+    if (change instanceof Array) {
+        for (let i = 0; i < 9; i++) {
+            switch (change[i]) {
+                case Player.X:
+                    document.getElementById(`container${i}`).setAttribute('class', 'container fa fa-close');
+                    break;
+    
+                case Player.O:
+                    document.getElementById(`container${i}`).setAttribute('class', 'container fa fa-circle-o');
+                    break;
+            }
         }
+    } else if (change === Player.noPlayer) {
+        endGame();
     }
 }
 
@@ -226,16 +275,18 @@ function invite() {
                         to: user.uid
                     });
 
+                    opponentUsername = user.username;
+
                     firebase.database().ref('invitations').set(invitations).then(() => {
                         game = `games/${currentUser.uid}/${user.uid}`;
                         player = Player.X;
-                        firebase.database().ref(`${game}`).on('child_added', childChanged);
-                        firebase.database().ref(`${game}`).on('child_changed', childChanged);
 
                         firebase.database().ref(`${game}/field`).set(field).then(() => {
                             firebase.database().ref(`${game}/turn`).set(player).then(() => {
                                 document.getElementById('inviteWindow').style.display = 'none';
                                 document.getElementById('game').style.display = 'block';
+
+                                firebase.database().ref(`${game}`).on('child_changed', drawField);
                             }).catch(error => {
                                 console.error(error.message);
                             });
@@ -257,12 +308,22 @@ function invite() {
     });
 }
 
-function childChanged(snapshot) {
-    let change = snapshot.val();
+function endGame() {
+    let winnerDiv = document.getElementById('winner');
 
-    if (change instanceof Array) {
-        drawField(change);
-    } else {
-        selectContainer(change);
-    }
+    firebase.database().ref(`${game}/winner`).once('value').then(snapshot => {
+        let winner = snapshot.val();
+
+        if (winner === Player.noPlayer) {
+            winnerDiv.textContent = 'Draw!';
+        } else if (winner === player) {
+            winnerDiv.textContent = `${currentUserUsername} won!`;
+        } else {
+            winnerDiv.textContent = `${opponentUsername} won!`;
+        }
+    }).catch(error => {
+        console.error(error.message);
+    });
+
+    winnerDiv.style.display = 'block';
 }

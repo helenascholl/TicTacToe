@@ -26,10 +26,18 @@ window.addEventListener('load', () => {
     firebase.auth().onAuthStateChanged(user => {
         let inviteWindow = document.getElementById('inviteWindow').style;
         let logInWindow = document.getElementById('logInWindow').style;
+        let back = document.getElementById('back').style;
 
         if (user) {
-            logInWindow.display = 'none';
-            inviteWindow.display = 'block';
+            inviteWindow.display = 'flex';
+            setTimeout(() => {
+                inviteWindow.opacity = 1;
+            }, 100);
+
+            back.display = 'block';
+            setTimeout(() => {
+                back.opacity = 1;
+            }, 100);
 
             firebase.database().ref('users').once('value').then(snapshot => {
                 for (let account of snapshot.val()) {
@@ -38,9 +46,16 @@ window.addEventListener('load', () => {
                     }
                 }
             });
-        } else {            
-            inviteWindow.display = 'none';
-            logInWindow.display = 'block';
+        } else {
+            logInWindow.display = 'flex';
+            setTimeout(() => {
+                logInWindow.opacity = 1;
+            }, 100);
+
+            back.opacity = 0;
+            setTimeout(() => {
+                back.display = 'none';
+            }, 200);
         }
     });
 
@@ -57,9 +72,32 @@ window.addEventListener('load', () => {
 
     firebase.database().ref('invitations').on('child_added', addInvitation);
 
+    clickOnEnter('username', 'logIn');
+    clickOnEnter('playerId', 'invite');
+
     document.getElementById('logIn').addEventListener('click', logIn);
     document.getElementById('invite').addEventListener('click', invite);
+    document.getElementById('username').addEventListener('input', () => {
+        document.getElementById('logInWindow').style.borderColor = '';
+        document.getElementById('logIn').style.borderLeftColor = '';
+    });
 });
+
+function clickOnEnter(inputId, buttonId) {
+    let input = document.getElementById(inputId);
+    let callback = (event) => {
+        if (event.key === 'Enter') {
+            document.getElementById(buttonId).click();
+        }
+    };
+
+    input.addEventListener('focus', () => {
+        input.addEventListener('keydown', callback);
+    });
+    input.addEventListener('blur', () => {
+        input.removeEventListener('keydown', callback);
+    });
+}
 
 function addInvitation(snapshotInvitation) {
     let currentUser = firebase.auth().currentUser;
@@ -97,7 +135,7 @@ function addInvitation(snapshotInvitation) {
 
                 firebase.database().ref('invitations').set(newInvitations).then(() => {
                     document.getElementById('inviteWindow').style.display = 'none';
-                    document.getElementById('game').style.display = 'block';
+                    document.getElementById('game').style.display = 'flex';
 
                     game = `games/${invitation.from}/${invitation.to}`;
                     player = Player.O;
@@ -174,7 +212,6 @@ function selectContainer(event) {
                         console.error(error.message);
                     });
                 }
-
             }).catch(error => {
                 console.error(error.message);
             });
@@ -204,8 +241,12 @@ function drawField(snapshot) {
 
 function logIn() {
     let username = document.getElementById('username').value;
+    let inviteWindow = document.getElementById('inviteWindow').style;
 
-    if (username != '') {
+    if (username) {
+        inviteWindow.left = '100vw';
+        inviteWindow.display = 'flex';
+
         firebase.auth().signInAnonymously().then(() => {
             firebase.database().ref('users').once('value').then(snapshot => {
                 let users = snapshot.val();
@@ -233,12 +274,21 @@ function logIn() {
                     username: username
                 });
 
+                currentUserUsername = username;
+
                 firebase.database().ref('users').set(users).then(() => {
                     firebase.auth().currentUser.updateProfile({
                         displayName: id
                     }).then(() => {
-                        document.getElementById('logInWindow').style.display = 'none';
-                        document.getElementById('inviteWindow').style.display = 'block';
+                        let logInWindow = document.getElementById('logInWindow').style;
+
+                        inviteWindow.left = 0;
+                        logInWindow.left = '-100vw';
+
+                        setTimeout(() => {
+                            logInWindow.display = 'none';
+                            logInWindow.left = 0;
+                        }, 200);
                     }).catch(error => {
                         console.error(error.message);
                     });
@@ -252,8 +302,8 @@ function logIn() {
             console.error(error.message);
         });
     } else {
-        console.log('invalid username');
-        // TODO: Error
+        document.getElementById('logInWindow').style.borderColor = '#ff4444';
+        document.getElementById('logIn').style.borderLeftColor = '#ff4444';
     }
 }
 
@@ -284,7 +334,7 @@ function invite() {
                         firebase.database().ref(`${game}/field`).set(field).then(() => {
                             firebase.database().ref(`${game}/turn`).set(player).then(() => {
                                 document.getElementById('inviteWindow').style.display = 'none';
-                                document.getElementById('game').style.display = 'block';
+                                document.getElementById('game').style.display = 'flex';
 
                                 firebase.database().ref(`${game}`).on('child_changed', drawField);
                             }).catch(error => {

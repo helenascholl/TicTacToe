@@ -5,6 +5,8 @@ body {
     font-family: 'Source Sans Pro', sans-serif;
     background-color: #313131;
     overflow: hidden;
+    user-select: none;
+    -moz-user-select: none;
 }
 
 .window {
@@ -43,10 +45,9 @@ body {
 
 .button {
     height: 3.5vmin;
-    width: 7vmin;
+    padding: 0 1vmin;
     color: #d8d8d8;
     display: inline-flex;
-    justify-content: center;
     align-items: center;
     cursor: pointer;
     font-size: 2vmin;
@@ -65,7 +66,91 @@ body {
     top: 1.5vmin;
     font-size: 2.5vmin;
     cursor: pointer;
+    color: #8f8f8f;
     transition: 200ms opacity;
+}
+
+#currentUsername {
+    width: 25vw;
+    height: 3vmin;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: absolute;
+    left: 37.5vw;
+    user-select: text;
+    -moz-user-select: text;
+    font-weight: bold;
+    font-size: 2.3vmin;
+    text-align: center;
+    color: #d8d8d8;
+    transition: 200ms top;
+}
+
+#challenges {
+    width: 25vmin;
+    height: 70vh;
+    position: absolute;
+    top: 15vh;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 0 1vmin;
+    transition: 200ms opacity, right 200ms;
+}
+
+#heading {
+    position: sticky;
+    top: 0;
+    left: 0;
+    font-size: 2.5vmin;
+    text-align: center;
+    background-color: #313131;
+    color: #d8d8d8;
+    padding: 0.5vmin 0;
+}
+
+.challenge:nth-child(2) {
+    border-top: 0.3vmin solid #8f8f8f;
+}
+
+.challenge {
+    height: 4vmin;
+    position: relative;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0.3vmin solid #8f8f8f;
+    color: #d8d8d8;
+    padding: 0 1vmin;
+    transition: 200ms left;
+}
+
+h3 {
+    width: 18vmin;
+    user-select: text;
+    -moz-user-select: text;
+    font-size: 2vmin;
+    margin: 0;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.accept {
+    width: 3vmin;
+    height: 3vmin;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+i {
+    transition: 200ms color;
+}
+
+.accept:hover i {
+    color: #7cff7c;
 }
 
 ::placeholder {
@@ -81,6 +166,11 @@ body {
     display: inline-block;
 }
 
-#game {
+#gameWindow {
     width: 220px;
+    position: absolute;
+    top: 0;
+    transition: 200ms left, 200ms opacity;
 }
+
+/* TODO: custom scrollbar */

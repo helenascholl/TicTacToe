@@ -3,12 +3,14 @@
 let game;
 let player;
 let opponentUsername;
-let currentUserUsername;
 let busy = false;
 let winningPatterns = [
     [0, 1, 2],
     [3, 4, 5],
     [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
     [0, 4, 8],
     [2, 4, 6]
 ];
@@ -25,36 +27,36 @@ window.addEventListener('load', () => {
     });
 
     firebase.auth().onAuthStateChanged(user => {
-        let inviteWindow = document.getElementById('inviteWindow').style;
+        let challengeWindow = document.getElementById('challengeWindow').style;
         let logInWindow = document.getElementById('logInWindow').style;
         let back = document.getElementById('back').style;
+        let currentUsername = document.getElementById('currentUsername');
+        let challenges = document.getElementById('challenges').style;
 
         if (user) {
-            inviteWindow.left = 0;
+            challengeWindow.left = 0;
             logInWindow.left = '-100vw';
-            inviteWindow.opacity = 1;
+            challengeWindow.opacity = 1;
             logInWindow.opacity = 0;
             back.opacity = 1;
             back.pointerEvents = 'all';
-
-            firebase.database().ref('users').once('value').then(snapshot => {
-                let users = snapshot.val();
-
-                if (users) {
-                    for (let account of snapshot.val()) {
-                        if (user.uid === account.uid) {
-                            currentUserUsername = account.username;
-                        }
-                    }
-                }
-            });
+            challenges.right = 0;
+            challenges.opacity = 1;
+            
+            if (user.displayName) {
+                currentUsername.textContent = user.displayName;
+                currentUsername.style.top = '1.5vmin';
+            }
         } else {
             logInWindow.left = 0;
-            inviteWindow.left = '100vw';
+            challengeWindow.left = '100vw';
             logInWindow.opacity = 1;
-            inviteWindow.opacity = 0;
+            challengeWindow.opacity = 0;
             back.opacity = 0;
             back.pointerEvents = 'none';
+            currentUsername.style.top = '-3vmin';
+            challenges.right = '-100vw';
+            challenges.opacity = 0;
         }
     });
 
@@ -66,24 +68,43 @@ window.addEventListener('load', () => {
 
         container.addEventListener('click', selectContainer);
 
-        document.getElementById('containers').appendChild(container);
+        document.getElementById('game').appendChild(container);
     }
 
-    firebase.database().ref('invitations').on('child_added', addInvitation);
+    firebase.database().ref('challenges').on('child_added', addChallenge);
 
     clickOnEnter('username', 'logIn');
-    clickOnEnter('playerId', 'invite');
+    clickOnEnter('opponentUsername', 'challenge');
 
     document.getElementById('logIn').addEventListener('click', logIn);
-    document.getElementById('invite').addEventListener('click', invite);
-    document.getElementById('back').addEventListener('click', () => {
-        firebase.auth().signOut();
-    });
-    document.getElementById('username').addEventListener('input', () => {
-        document.getElementById('logInWrapper').style.borderColor = '';
-        document.getElementById('logIn').style.borderLeftColor = '';
-    });
+    document.getElementById('challenge').addEventListener('click', challenge);
+    document.getElementById('back').addEventListener('click', backToLogIn);
 });
+
+function backToLogIn() {
+    // TODO: delete from database
+    firebase.auth().signOut();
+}
+
+function backToChallenge() {
+    let challengeWindow = document.getElementById('challengeWindow').style;
+    let gameWindow = document.getElementById('gameWindow').style;
+    let challenges = document.getElementById('challenges').style;
+    let back = document.getElementById('back');
+
+    challengeWindow.left = 0;
+    challenges.right = 0;
+    gameWindow.left = '100vw';
+    challengeWindow.opacity = 1;
+    challenges.opacity = 1;
+    gameWindow.opacity = 0;
+
+    back.removeEventListener('click', backToChallenge);
+
+    setTimeout(() => {
+        back.addEventListener('click', backToLogIn);
+    }, 200);
+}
 
 function clickOnEnter(inputId, buttonId) {
     let input = document.getElementById(inputId);
@@ -99,26 +120,33 @@ function clickOnEnter(inputId, buttonId) {
     input.addEventListener('blur', () => {
         input.removeEventListener('keydown', callback);
     });
+    input.addEventListener('input', () => {
+        document.getElementById(`${buttonId}Wrapper`).style.borderColor = '';
+        document.getElementById(buttonId).style.borderLeftColor = '';
+    });
 }
 
-function addInvitation(snapshotInvitation) {
+function addChallenge(snapshotChallenge) {
     let currentUser = firebase.auth().currentUser;
-    let invitation = snapshotInvitation.val();
+    let challenge = snapshotChallenge.val();
 
-    if (currentUser && invitation.to === currentUser.uid) {
-        let invitationDiv = document.createElement('div');
+    if (currentUser && challenge.to === currentUser.uid) {
+        let challengeDiv = document.createElement('div');
         let accept = document.createElement('div');
+        let i = document.createElement('i');
         let h3 = document.createElement('h3');
 
-        invitationDiv.setAttribute('class', 'invitaion');
+        challengeDiv.setAttribute('class', 'challenge');
+        challengeDiv.style.left = '25vmin';
         accept.setAttribute('class', 'accept');
-        accept.textContent = 'Accept';
+        i.setAttribute('class', 'fa fa-check');
         
         firebase.database().ref('users').once('value').then(snapshotUsers => {
             for (let user of snapshotUsers.val()) {
-                if (user.uid === invitation.from) {
+                if (user.uid === challenge.from) {
                     opponentUsername = user.username;
                     h3.textContent = opponentUsername;
+                    h3.title = opponentUsername;
                 }
             }
         }).catch(error => {
@@ -126,38 +154,70 @@ function addInvitation(snapshotInvitation) {
         });
 
         accept.addEventListener('click', () => {
-            firebase.database().ref('invitations').once('value').then(snapshotInvitations => {
-                let newInvitations = [];
+            firebase.database().ref('challenges').once('value').then(snapshotChallenges => {
+                let newChallenges = [];
 
-                for (let child of snapshotInvitations.val()) {
-                    if (child.from !== invitation.from && child.to !== invitation.to) {
-                        newInvitations.push(child);
+                for (let child of snapshotChallenges.val()) {
+                    if (child.from !== challenge.from && child.to !== challenge.to) {
+                        newChallenges.push(child);
                     }
                 }
 
-                firebase.database().ref('invitations').set(newInvitations).then(() => {
-                    document.getElementById('inviteWindow').style.display = 'none';
-                    document.getElementById('game').style.display = 'flex';
+                firebase.database().ref('challenges').set(newChallenges).then(() => {
+                    let challengeWindow = document.getElementById('challengeWindow').style;
+                    let gameWindow = document.getElementById('gameWindow').style;
+                    let challenges = document.getElementById('challenges');
+                    let back = document.getElementById('back');
 
-                    game = `games/${invitation.from}/${invitation.to}`;
+                    gameWindow.left = 0;
+                    challengeWindow.left = '-100vw';
+                    challenges.style.right = '100vw';
+                    gameWindow.opacity = 1;
+                    challengeWindow.opacity = 0;
+                    challenges.style.opacity = 0;
+
+                    back.removeEventListener('click', backToLogIn);
+
+                    setTimeout(() => {
+                        let childNodes = challenges.childNodes;
+
+                        back.addEventListener('click', backToChallenge);
+
+                        for (let i = 0; i < childNodes.length; i++) {
+                            if (childNodes[i].className === 'challenge' && childNodes[i].childNodes[0].textContent === opponentUsername) {
+                                challenges.removeChild(childNodes[i]);
+                                i--;
+                            }
+                        }
+                    }, 200);
+
+                    // TODO: set ready
+                    game = `games/${challenge.from}/${challenge.to}`;
                     player = Player.O;
+
                     firebase.database().ref(`${game}`).on('child_changed', drawField);
                 }).catch(error => {
                     console.error(error.message);
                 });
             }).catch(error => {
                 console.error(error.message);
-            })
+            });
         });
 
-        invitationDiv.appendChild(h3);
-        invitationDiv.appendChild(accept);
-        document.getElementById('invitations').appendChild(invitationDiv);
+        accept.appendChild(i);
+        challengeDiv.appendChild(h3);
+        challengeDiv.appendChild(accept);
+        document.getElementById('challenges').appendChild(challengeDiv);
+
+        setTimeout(() => {
+            challengeDiv.style.left = 0;
+        }, 100);
     }
 }
 
 function selectContainer(event) {
     firebase.database().ref(`${game}/turn`).once('value').then(snapshotTurn => {
+        // TODO: check ready
         if (snapshotTurn.val() === player) {
             firebase.database().ref(`${game}/field`).once('value').then(snapshotPlayers => {
                 let players = snapshotPlayers.val();
@@ -182,6 +242,8 @@ function selectContainer(event) {
                                 }
                             }
 
+
+                            // TODO: fix
                             if (won) {
                                 turn = Player.noPlayer;
 
@@ -244,55 +306,60 @@ function drawField(snapshot) {
 function logIn() {
     let username = document.getElementById('username');
 
-    if (username.value) {
+    // TODO: username only a-zA-Z0-9
+
+    if (username.value && !busy) {
         busy = true;
 
-        firebase.auth().signInAnonymously().then(() => {
-            firebase.database().ref('users').once('value').then(snapshot => {
-                let users = snapshot.val();
-                let id;
-                let isUnique;
+        firebase.database().ref('users').once('value').then(snapshotUsers => {
+            let users = snapshotUsers.val();
 
-                if (!users) {
-                    users = [];
+            if (!users) {
+                users = [];
+            }
+
+            let isUnique = true;
+
+            for (let i = 0; i < users.length && isUnique; i++) {
+                if (users[i].username === username.value) {
+                    isUnique = false;
                 }
+            }
 
-                do {
-                    id = parseInt(Math.random() * 10000);
-                    isUnique = true;
+            if (isUnique) {
+                firebase.auth().signInAnonymously().then(() => {
+                    users.push({
+                        uid : firebase.auth().currentUser.uid,
+                        username: username.value
+                    });
 
-                    for (let i = 0; i < users.length && isUnique; i++) {
-                        if (users[i].id === id) {
-                            isUnique = false;
-                        }
-                    }
-                } while (!isUnique);
+                    firebase.database().ref('users').set(users).then(() => {
+                        firebase.auth().currentUser.updateProfile({
+                            displayName: username.value
+                        }).then(() => {
+                            // TODO: load
+                            let currentUsername = document.getElementById('currentUsername');
 
-                users.push({
-                    id: id,
-                    uid: firebase.auth().currentUser.uid,
-                    username: username.value
-                });
+                            currentUsername.textContent = username.value;
+                            currentUsername.style.top = '1.5vmin';
 
-                currentUserUsername = username.value;
-
-                firebase.database().ref('users').set(users).then(() => {
-                    firebase.auth().currentUser.updateProfile({
-                        displayName: id
-                    }).then(() => {
-                        setTimeout(() => {
-                            username.value = '';
-                            busy = false;
-                        }, 200);
+                            setTimeout(() => {
+                                username.value = '';
+                                busy = false;
+                            }, 200);
+                        }).catch(error => {
+                            console.error(error.message);
+                        });
                     }).catch(error => {
                         console.error(error.message);
                     });
-                }).catch(error => {
-                    console.error(error.message);
                 });
-            }).catch(error => {
-                console.error(error.message);
-            });
+            } else {
+                // TODO: error message
+                document.getElementById('logInWrapper').style.borderColor = '#ff4444';
+                document.getElementById('logIn').style.borderLeftColor = '#ff4444';
+                busy = false;
+            }
         }).catch(error => {
             console.error(error.message);
         });
@@ -302,44 +369,62 @@ function logIn() {
     }
 }
 
-function invite() {
+function challenge() {
     if (!busy) {
         busy = true;
 
         firebase.database().ref('users').once('value').then(snapshotUsers => {
-            for (let user of snapshotUsers.val()) {
-                let currentUser = firebase.auth().currentUser;
+            let found = false;
+            let users = snapshotUsers.val();
 
-                if (user.id == document.getElementById('playerId').value && user.id !== currentUser.displayName) {
-                    firebase.database().ref('invitations').once('value').then(snapshotInvitations => {
-                        let invitations = snapshotInvitations.val();
+            for (let i = 0; i < users.length && !found; i++) {
+                let currentUser = firebase.auth().currentUser;
+                let opponent = document.getElementById('opponentUsername');
+
+                if (users[i].username == opponent.value && users[i].username !== currentUser.displayName) {
+                    found = true;
+
+                    firebase.database().ref('challenges').once('value').then(snapshotChallenges => {
+                        let challenges = snapshotChallenges.val();
             
-                        if (!invitations) {
-                            invitations = [];
+                        if (!challenges) {
+                            challenges = [];
                         }
             
-                        invitations.push({
+                        challenges.push({
                             from: currentUser.uid,
-                            to: user.uid
+                            to: users[i].uid
                         });
 
-                        opponentUsername = user.username;
+                        opponentUsername = users[i].username;
 
-                        firebase.database().ref('invitations').set(invitations).then(() => {
-                            game = `games/${currentUser.uid}/${user.uid}`;
+                        firebase.database().ref('challenges').set(challenges).then(() => {
+                            game = `games/${currentUser.uid}/${users[i].uid}`;
                             player = Player.X;
 
-                            firebase.database().ref(`${game}/field`).set(field).then(() => {
-                                firebase.database().ref(`${game}/turn`).set(player).then(() => {
-                                    document.getElementById('inviteWindow').style.display = 'none';
-                                    document.getElementById('game').style.display = 'flex';
+                            firebase.database().ref(game).set(new Game()).then(() => {
+                                let challengeWindow = document.getElementById('challengeWindow').style;
+                                let gameWindow = document.getElementById('gameWindow').style;
+                                let challenges = document.getElementById('challenges').style;
+                                let back = document.getElementById('back');
 
-                                    firebase.database().ref(`${game}`).on('child_changed', drawField);
+                                gameWindow.left = 0;
+                                challengeWindow.left = '-100vw';
+                                challenges.right = '100vw';
+                                gameWindow.opacity = 1;
+                                challengeWindow.opacity = 0;
+                                challenges.opacity = 0;
 
-                                    busy = false;
-                                }).catch(error => {
-                                    console.error(error.message);
-                                });
+                                back.removeEventListener('click', backToLogIn);
+
+                                setTimeout(() => {
+                                    back.addEventListener('click', backToChallenge);
+                                    opponent.value = '';
+                                }, 200);
+
+                                firebase.database().ref(`${game}`).on('child_changed', drawField);
+
+                                busy = false;
                             }).catch(error => {
                                 console.error(error.message);
                             });
@@ -349,10 +434,14 @@ function invite() {
                     }).catch(error => {
                         console.error(error.message);
                     });
-                } else {
-                    document.getElementById('inviteWrapper').style.borderColor = '#ff4444';
-                    document.getElementById('invite').style.borderLeftColor = '#ff4444';
                 }
+            }
+
+            if (!found) {
+                // TODO: error message
+                document.getElementById('challengeWrapper').style.borderColor = '#ff4444';
+                document.getElementById('challenge').style.borderLeftColor = '#ff4444';
+                busy = false;
             }
         }).catch(error => {
             console.error(error.message);
@@ -369,7 +458,7 @@ function endGame() {
         if (winner === Player.noPlayer) {
             winnerDiv.textContent = 'Draw!';
         } else if (winner === player) {
-            winnerDiv.textContent = `${currentUserUsername} won!`;
+            winnerDiv.textContent = `${firebase.auth().currentUser.displayName} won!`;
         } else {
             winnerDiv.textContent = `${opponentUsername} won!`;
         }

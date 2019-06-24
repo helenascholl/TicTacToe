@@ -1,37 +1,40 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe</title>
-    <link rel="stylesheet" href="./style/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.7.0/css/all.css' integrity='sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ' crossorigin='anonymous'>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap"> 
-    <script src="./script/script.js"></script>
-    <script src="./script/game.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-database.js"></script>
-</head>
-<body>
-    <div id="logInWindow" class="window" style="left: 0; opacity: 0;">
-        <div id="logInWrapper" class="inputWrapper">
-            <input id="username" class="input" type="text" placeholder="Name" autocomplete="off">
-            <div id="logIn" class="button">Play!</div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tic Tac Toe</title>
+        <link rel="stylesheet" href="./style/style.css">
+        <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.7.0/css/all.css' integrity='sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ' crossorigin='anonymous'>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap"> 
+        <script src="./script/script.js"></script>
+        <script src="./script/game.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-auth.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-database.js"></script>
+    </head>
+    <body>
+        <div id="logInWindow" class="window" style="left: 0; opacity: 0;">
+            <div id="logInWrapper" class="inputWrapper">
+                <input id="username" class="input" type="text" placeholder="Name" autocomplete="off">
+                <div id="logIn" class="button">Play!</div>
+            </div>
         </div>
-    </div>
-    <div id="inviteWindow" class="window" style="left: 0; opacity: 0;">
-        <div id="inviteWrapper" class="inputWrapper">
-            <input id="playerId" class="input" type="text" placeholder="Player ID">
-            <div id="invite" class="button">Invite</div>
+        <div id="challengeWindow" class="window" style="left: 0; opacity: 0;">
+            <div id="challengeWrapper" class="inputWrapper">
+                <input id="opponentUsername" class="input" type="text" placeholder="Username">
+                <div id="challenge" class="button">Challenge</div>
+            </div>
         </div>
-    </div>
-    <div id="invitations"></div>
-    <div id="game" style="display: none;">
-            <div id="containers"></div>
-            <div id="winner" style="display: none;">someone won</div>
+        <div id="challenges" style="opacity: 0; right: 0;">
+            <div id="heading">Challenges</div>
         </div>
+        <div id="gameWindow" style="left: 100vw; opacity: 0;">
+            <div id="game"></div>
+            <div id="winner" style="display: none;"></div>
+        </div>
+        <div id="back" class="fas fa-arrow-left" style="opacity: 0; pointer-events: none;"></div>
+        <div id="currentUsername" style="top: -3vmin;"></div>
     </body>
-    <div id="back" class="fas fa-arrow-left" style="opacity: 0; pointer-events: none;"></div>
 </html>

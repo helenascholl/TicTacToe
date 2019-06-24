@@ -4,6 +4,7 @@ let game;
 let player;
 let opponentUsername;
 let currentUserUsername;
+let busy = false;
 let winningPatterns = [
     [0, 1, 2],
     [3, 4, 5],
@@ -29,33 +30,31 @@ window.addEventListener('load', () => {
         let back = document.getElementById('back').style;
 
         if (user) {
-            inviteWindow.display = 'flex';
-            setTimeout(() => {
-                inviteWindow.opacity = 1;
-            }, 100);
-
-            back.display = 'block';
-            setTimeout(() => {
-                back.opacity = 1;
-            }, 100);
+            inviteWindow.left = 0;
+            logInWindow.left = '-100vw';
+            inviteWindow.opacity = 1;
+            logInWindow.opacity = 0;
+            back.opacity = 1;
+            back.pointerEvents = 'all';
 
             firebase.database().ref('users').once('value').then(snapshot => {
-                for (let account of snapshot.val()) {
-                    if (user.uid === account.uid) {
-                        currentUserUsername = account.username;
+                let users = snapshot.val();
+
+                if (users) {
+                    for (let account of snapshot.val()) {
+                        if (user.uid === account.uid) {
+                            currentUserUsername = account.username;
+                        }
                     }
                 }
             });
         } else {
-            logInWindow.display = 'flex';
-            setTimeout(() => {
-                logInWindow.opacity = 1;
-            }, 100);
-
+            logInWindow.left = 0;
+            inviteWindow.left = '100vw';
+            logInWindow.opacity = 1;
+            inviteWindow.opacity = 0;
             back.opacity = 0;
-            setTimeout(() => {
-                back.display = 'none';
-            }, 200);
+            back.pointerEvents = 'none';
         }
     });
 
@@ -77,8 +76,11 @@ window.addEventListener('load', () => {
 
     document.getElementById('logIn').addEventListener('click', logIn);
     document.getElementById('invite').addEventListener('click', invite);
+    document.getElementById('back').addEventListener('click', () => {
+        firebase.auth().signOut();
+    });
     document.getElementById('username').addEventListener('input', () => {
-        document.getElementById('logInWindow').style.borderColor = '';
+        document.getElementById('logInWrapper').style.borderColor = '';
         document.getElementById('logIn').style.borderLeftColor = '';
     });
 });
@@ -86,7 +88,7 @@ window.addEventListener('load', () => {
 function clickOnEnter(inputId, buttonId) {
     let input = document.getElementById(inputId);
     let callback = (event) => {
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' && !busy) {
             document.getElementById(buttonId).click();
         }
     };
@@ -240,12 +242,10 @@ function drawField(snapshot) {
 }
 
 function logIn() {
-    let username = document.getElementById('username').value;
-    let inviteWindow = document.getElementById('inviteWindow').style;
+    let username = document.getElementById('username');
 
-    if (username) {
-        inviteWindow.left = '100vw';
-        inviteWindow.display = 'flex';
+    if (username.value) {
+        busy = true;
 
         firebase.auth().signInAnonymously().then(() => {
             firebase.database().ref('users').once('value').then(snapshot => {
@@ -271,23 +271,18 @@ function logIn() {
                 users.push({
                     id: id,
                     uid: firebase.auth().currentUser.uid,
-                    username: username
+                    username: username.value
                 });
 
-                currentUserUsername = username;
+                currentUserUsername = username.value;
 
                 firebase.database().ref('users').set(users).then(() => {
                     firebase.auth().currentUser.updateProfile({
                         displayName: id
                     }).then(() => {
-                        let logInWindow = document.getElementById('logInWindow').style;
-
-                        inviteWindow.left = 0;
-                        logInWindow.left = '-100vw';
-
                         setTimeout(() => {
-                            logInWindow.display = 'none';
-                            logInWindow.left = 0;
+                            username.value = '';
+                            busy = false;
                         }, 200);
                     }).catch(error => {
                         console.error(error.message);
@@ -302,41 +297,49 @@ function logIn() {
             console.error(error.message);
         });
     } else {
-        document.getElementById('logInWindow').style.borderColor = '#ff4444';
+        document.getElementById('logInWrapper').style.borderColor = '#ff4444';
         document.getElementById('logIn').style.borderLeftColor = '#ff4444';
     }
 }
 
 function invite() {
-    firebase.database().ref('users').once('value').then(snapshotUsers => {
-        for (let user of snapshotUsers.val()) {
-            let currentUser = firebase.auth().currentUser;
+    if (!busy) {
+        busy = true;
 
-            if (user.id == document.getElementById('playerId').value && user.id !== currentUser.displayName) {
-                firebase.database().ref('invitations').once('value').then(snapshotInvitations => {
-                    let invitations = snapshotInvitations.val();
-        
-                    if (!invitations) {
-                        invitations = [];
-                    }
-        
-                    invitations.push({
-                        from: currentUser.uid,
-                        to: user.uid
-                    });
+        firebase.database().ref('users').once('value').then(snapshotUsers => {
+            for (let user of snapshotUsers.val()) {
+                let currentUser = firebase.auth().currentUser;
 
-                    opponentUsername = user.username;
+                if (user.id == document.getElementById('playerId').value && user.id !== currentUser.displayName) {
+                    firebase.database().ref('invitations').once('value').then(snapshotInvitations => {
+                        let invitations = snapshotInvitations.val();
+            
+                        if (!invitations) {
+                            invitations = [];
+                        }
+            
+                        invitations.push({
+                            from: currentUser.uid,
+                            to: user.uid
+                        });
 
-                    firebase.database().ref('invitations').set(invitations).then(() => {
-                        game = `games/${currentUser.uid}/${user.uid}`;
-                        player = Player.X;
+                        opponentUsername = user.username;
 
-                        firebase.database().ref(`${game}/field`).set(field).then(() => {
-                            firebase.database().ref(`${game}/turn`).set(player).then(() => {
-                                document.getElementById('inviteWindow').style.display = 'none';
-                                document.getElementById('game').style.display = 'flex';
+                        firebase.database().ref('invitations').set(invitations).then(() => {
+                            game = `games/${currentUser.uid}/${user.uid}`;
+                            player = Player.X;
 
-                                firebase.database().ref(`${game}`).on('child_changed', drawField);
+                            firebase.database().ref(`${game}/field`).set(field).then(() => {
+                                firebase.database().ref(`${game}/turn`).set(player).then(() => {
+                                    document.getElementById('inviteWindow').style.display = 'none';
+                                    document.getElementById('game').style.display = 'flex';
+
+                                    firebase.database().ref(`${game}`).on('child_changed', drawField);
+
+                                    busy = false;
+                                }).catch(error => {
+                                    console.error(error.message);
+                                });
                             }).catch(error => {
                                 console.error(error.message);
                             });
@@ -346,16 +349,15 @@ function invite() {
                     }).catch(error => {
                         console.error(error.message);
                     });
-                }).catch(error => {
-                    console.error(error.message);
-                });
-            } else {
-                // TODO: Error
+                } else {
+                    document.getElementById('inviteWrapper').style.borderColor = '#ff4444';
+                    document.getElementById('invite').style.borderLeftColor = '#ff4444';
+                }
             }
-        }
-    }).catch(error => {
-        console.error(error.message);
-    });
+        }).catch(error => {
+            console.error(error.message);
+        });
+    }
 }
 
 function endGame() {

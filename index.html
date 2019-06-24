@@ -15,23 +15,23 @@
     <script src="https://www.gstatic.com/firebasejs/6.2.1/firebase-database.js"></script>
 </head>
 <body>
-    <div id="logInWindow" class="window" style="display: none; left: 0; opacity: 0;">
-        <div class="inputWrapper">
+    <div id="logInWindow" class="window" style="left: 0; opacity: 0;">
+        <div id="logInWrapper" class="inputWrapper">
             <input id="username" class="input" type="text" placeholder="Name" autocomplete="off">
             <div id="logIn" class="button">Play!</div>
         </div>
     </div>
-    <div id="back" class="fas fa-arrow-left" style="display: none; opacity: 0;"></div>
-    <div id="inviteWindow" class="window" style="display: none; left: 0; opacity: 0;">
-        <div class="inputWrapper">
+    <div id="inviteWindow" class="window" style="left: 0; opacity: 0;">
+        <div id="inviteWrapper" class="inputWrapper">
             <input id="playerId" class="input" type="text" placeholder="Player ID">
             <div id="invite" class="button">Invite</div>
         </div>
     </div>
     <div id="invitations"></div>
     <div id="game" style="display: none;">
-        <div id="containers"></div>
-        <div id="winner" style="display: none;">someone won</div>
-    </div>
-</body>
+            <div id="containers"></div>
+            <div id="winner" style="display: none;">someone won</div>
+        </div>
+    </body>
+    <div id="back" class="fas fa-arrow-left" style="opacity: 0; pointer-events: none;"></div>
 </html>

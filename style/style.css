@@ -12,6 +12,7 @@ body {
     height: 100vh;
     position: absolute;
     top: 0;
+    display: flex;
     justify-content: center;
     align-items: center;
     transition: 200ms left, 200ms opacity;

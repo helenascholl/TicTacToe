@@ -60,16 +60,7 @@ window.addEventListener('load', () => {
         }
     });
 
-    for (let i = 0; i < 9; i++) {
-        let container = document.createElement('div');
-
-        container.setAttribute('id', `container${i}`);
-        container.setAttribute('class', 'container');
-
-        container.addEventListener('click', selectContainer);
-
-        document.getElementById('game').appendChild(container);
-    }
+    resetField();
 
     firebase.database().ref('challenges').on('child_added', addChallenge);
 
@@ -81,8 +72,33 @@ window.addEventListener('load', () => {
     document.getElementById('back').addEventListener('click', backToLogIn);
 });
 
+function resetField() {
+    let game = document.getElementById('game');
+    let boxCount = 0;
+
+    game.innerHTML = '';
+
+    for (let i = 1; i <= 3; i++) {
+        let row = document.createElement('div');
+        row.setAttribute('class', 'row');
+
+        for (let j = 0; j < 3; j++) {
+            let box = document.createElement('div');
+    
+            box.setAttribute('id', `box${boxCount++}`);
+            box.setAttribute('class', 'box');
+    
+            box.addEventListener('click', selectBox);
+    
+            row.appendChild(box);
+        }
+
+        game.appendChild(row);
+    }
+}
+
 function backToLogIn() {
-    // TODO: delete from database
+    // TODO: delete from database + delete user
     firebase.auth().signOut();
 }
 
@@ -98,6 +114,11 @@ function backToChallenge() {
     challengeWindow.opacity = 1;
     challenges.opacity = 1;
     gameWindow.opacity = 0;
+
+    setTimeout(() => {
+        resetField();
+        document.getElementById('winner').style.display = 'none';
+    }, 200);
 
     back.removeEventListener('click', backToChallenge);
 
@@ -215,13 +236,13 @@ function addChallenge(snapshotChallenge) {
     }
 }
 
-function selectContainer(event) {
+function selectBox(event) {
     firebase.database().ref(`${game}/turn`).once('value').then(snapshotTurn => {
         // TODO: check ready
         if (snapshotTurn.val() === player) {
             firebase.database().ref(`${game}/field`).once('value').then(snapshotPlayers => {
                 let players = snapshotPlayers.val();
-                let index = parseInt(event.target.id.replace('container', ''));
+                let index = parseInt(event.target.id.replace('box', ''));
 
                 if (players[index] === Player.noPlayer) {
                     players[index] = player;
@@ -243,7 +264,6 @@ function selectContainer(event) {
                             }
 
 
-                            // TODO: fix
                             if (won) {
                                 turn = Player.noPlayer;
 
@@ -253,8 +273,8 @@ function selectContainer(event) {
                             } else {
                                 let isFull = true;
 
-                                for (let container of players) {
-                                    if (container === Player.noPlayer) {
+                                for (let box of players) {
+                                    if (box === Player.noPlayer) {
                                         isFull = false;
                                     }
                                 }
@@ -288,15 +308,26 @@ function drawField(snapshot) {
 
     if (change instanceof Array) {
         for (let i = 0; i < 9; i++) {
+            let icon = document.createElement('i');
+
+            icon.style.fontSize = '8vmin';
+            icon.style.opacity = 0;
+
             switch (change[i]) {
                 case Player.X:
-                    document.getElementById(`container${i}`).setAttribute('class', 'container fa fa-close');
+                    icon.setAttribute('class', 'fa fa-close');
                     break;
     
                 case Player.O:
-                    document.getElementById(`container${i}`).setAttribute('class', 'container fa fa-circle-o');
+                    icon.setAttribute('class', 'fa fa-circle-o');
                     break;
             }
+
+            document.getElementById(`box${i}`).appendChild(icon);
+
+            setTimeout(() => {
+                icon.style.opacity = 1;
+            }, 10);
         }
     } else if (change === Player.noPlayer) {
         endGame();

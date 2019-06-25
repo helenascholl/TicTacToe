@@ -158,19 +158,34 @@ i {
     opacity: 1;
 }
 
-.container {
-    width: 50px;
-    height: 50px;
-    border: 1px solid black;
-    margin: 10px;
-    display: inline-block;
+.box {
+    width: 10vmin;
+    height: 10vmin;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    border-right: 1vmin solid #8f8f8f;
+    vertical-align: top;
 }
 
-#gameWindow {
-    width: 220px;
-    position: absolute;
-    top: 0;
-    transition: 200ms left, 200ms opacity;
+.box:last-child {
+    border-right: none;
+}
+
+.row {
+    height: 10vmin;
+    border-bottom: 1vmin solid #8f8f8f;
+}
+
+.row:last-child {
+    border-bottom: none;
+}
+
+i {
+    color: #d8d8d8;
+    font-size: 3vmin;
+    transition: 200ms opacity;
 }
 
 /* TODO: custom scrollbar */

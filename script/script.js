@@ -78,18 +78,24 @@ function resetField() {
 
     game.innerHTML = '';
 
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 0; i < 3; i++) {
         let row = document.createElement('div');
         row.setAttribute('class', 'row');
 
         for (let j = 0; j < 3; j++) {
             let box = document.createElement('div');
+            let icon = document.createElement('i');
+
+            icon.style.fontSize = '8vmin';
+            icon.style.opacity = 0;
+            icon.setAttribute('id', `icon${boxCount}`)
     
             box.setAttribute('id', `box${boxCount++}`);
             box.setAttribute('class', 'box');
     
             box.addEventListener('click', selectBox);
     
+            box.appendChild(icon);
             row.appendChild(box);
         }
 
@@ -190,19 +196,19 @@ function addChallenge(snapshotChallenge) {
                     let challenges = document.getElementById('challenges');
                     let back = document.getElementById('back');
 
-                    gameWindow.left = 0;
-                    challengeWindow.left = '-100vw';
-                    challenges.style.right = '100vw';
-                    gameWindow.opacity = 1;
-                    challengeWindow.opacity = 0;
-                    challenges.style.opacity = 0;
+            gameWindow.left = 0;
+            challengeWindow.left = '-100vw';
+            challenges.style.right = '100vw';
+            gameWindow.opacity = 1;
+            challengeWindow.opacity = 0;
+            challenges.style.opacity = 0;
 
-                    back.removeEventListener('click', backToLogIn);
+            back.removeEventListener('click', backToLogIn);
 
-                    setTimeout(() => {
-                        let childNodes = challenges.childNodes;
+            setTimeout(() => {
+                let childNodes = challenges.childNodes;
 
-                        back.addEventListener('click', backToChallenge);
+                back.addEventListener('click', backToChallenge);
 
                         for (let i = 0; i < childNodes.length; i++) {
                             if (childNodes[i].className === 'challenge' && childNodes[i].childNodes[0].textContent === opponentUsername) {
@@ -308,26 +314,18 @@ function drawField(snapshot) {
 
     if (change instanceof Array) {
         for (let i = 0; i < 9; i++) {
-            let icon = document.createElement('i');
-
-            icon.style.fontSize = '8vmin';
-            icon.style.opacity = 0;
-
+            let icon = document.getElementById(`icon${i}`);
+            
             switch (change[i]) {
                 case Player.X:
                     icon.setAttribute('class', 'fa fa-close');
                     break;
     
                 case Player.O:
+                    icon.style.opacity = 0;
                     icon.setAttribute('class', 'fa fa-circle-o');
                     break;
             }
-
-            document.getElementById(`box${i}`).appendChild(icon);
-
-            setTimeout(() => {
-                icon.style.opacity = 1;
-            }, 10);
         }
     } else if (change === Player.noPlayer) {
         endGame();

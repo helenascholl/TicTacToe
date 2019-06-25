@@ -60,7 +60,7 @@ window.addEventListener('load', () => {
         }
     });
 
-    resetField();
+    initField();
 
     firebase.database().ref('challenges').on('child_added', addChallenge);
 
@@ -72,11 +72,9 @@ window.addEventListener('load', () => {
     document.getElementById('back').addEventListener('click', backToLogIn);
 });
 
-function resetField() {
+function initField() {
     let game = document.getElementById('game');
     let boxCount = 0;
-
-    game.innerHTML = '';
 
     for (let i = 0; i < 3; i++) {
         let row = document.createElement('div');
@@ -100,6 +98,15 @@ function resetField() {
         }
 
         game.appendChild(row);
+    }
+}
+
+function resetField() {
+    for (let i = 0; i < 9; i++) {
+        let icon = document.getElementById(`icon${i}`);
+
+        icon.setAttribute('class', '');
+        icon.style.opacity = 0;
     }
 }
 
@@ -196,19 +203,19 @@ function addChallenge(snapshotChallenge) {
                     let challenges = document.getElementById('challenges');
                     let back = document.getElementById('back');
 
-            gameWindow.left = 0;
-            challengeWindow.left = '-100vw';
-            challenges.style.right = '100vw';
-            gameWindow.opacity = 1;
-            challengeWindow.opacity = 0;
-            challenges.style.opacity = 0;
+                    gameWindow.left = 0;
+                    challengeWindow.left = '-100vw';
+                    challenges.style.right = '100vw';
+                    gameWindow.opacity = 1;
+                    challengeWindow.opacity = 0;
+                    challenges.style.opacity = 0;
 
-            back.removeEventListener('click', backToLogIn);
+                    back.removeEventListener('click', backToLogIn);
 
-            setTimeout(() => {
-                let childNodes = challenges.childNodes;
+                    setTimeout(() => {
+                        let childNodes = challenges.childNodes;
 
-                back.addEventListener('click', backToChallenge);
+                        back.addEventListener('click', backToChallenge);
 
                         for (let i = 0; i < childNodes.length; i++) {
                             if (childNodes[i].className === 'challenge' && childNodes[i].childNodes[0].textContent === opponentUsername) {
@@ -222,7 +229,8 @@ function addChallenge(snapshotChallenge) {
                     game = `games/${challenge.from}/${challenge.to}`;
                     player = Player.O;
 
-                    firebase.database().ref(`${game}`).on('child_changed', drawField);
+                    firebase.database().ref(`${game}`).on('child_changed', endGame);
+                    firebase.database().ref(`${game}/field`).on('child_changed', drawField);
                 }).catch(error => {
                     console.error(error.message);
                 });
@@ -250,49 +258,49 @@ function selectBox(event) {
                 let players = snapshotPlayers.val();
                 let index = parseInt(event.target.id.replace('box', ''));
 
-                if (players[index] === Player.noPlayer) {
-                    players[index] = player;
+                if (players[index].player === Player.noPlayer) {
+                    players[index].player = player;
 
                     firebase.database().ref(`${game}/field`).set(players).then(() => {
                         let turn = Player.X;
+                        let winner;
     
                         if (player === Player.X) {
                             turn = Player.O;
+                        }
+
+                        let isFull = true;
+
+                        for (let box of players) {
+                            if (box.player === Player.noPlayer) {
+                                isFull = false;
+                            }
+                        }
+
+                        if (isFull) {
+                            winner = Player.noPlayer;
                         }
 
                         for (let pattern of winningPatterns) {
                             let won = true;
     
                             for (let i = 0; i < pattern.length && won; i++) {
-                                if (players[pattern[i]] !== player) {
+                                if (players[pattern[i]].player !== player) {
                                     won = false;
                                 }
                             }
 
-
                             if (won) {
-                                turn = Player.noPlayer;
-
-                                firebase.database().ref(`${game}/winner`).set(player).catch(error => {
-                                    console.error(error.message);
-                                });
-                            } else {
-                                let isFull = true;
-
-                                for (let box of players) {
-                                    if (box === Player.noPlayer) {
-                                        isFull = false;
-                                    }
-                                }
-
-                                if (isFull) {
-                                    turn = Player.noPlayer;
-
-                                    firebase.database().ref(`${game}/winner`).set(Player.noPlayer).catch(error => {
-                                        console.error(error.message);
-                                    });
-                                }
+                                winner = player;
                             }
+                        }
+
+                        if (winner != undefined) {
+                            turn = Player.noPlayer;
+
+                            firebase.database().ref(`${game}/winner`).set(winner).catch(error => {
+                                console.error(error.message);
+                            });
                         }
                 
                         firebase.database().ref(`${game}/turn`).set(turn).catch(error => {
@@ -311,33 +319,25 @@ function selectBox(event) {
 
 function drawField(snapshot) {
     let change = snapshot.val();
-
-    if (change instanceof Array) {
-        for (let i = 0; i < 9; i++) {
-            let icon = document.getElementById(`icon${i}`);
-            
-            switch (change[i]) {
-                case Player.X:
-                    icon.setAttribute('class', 'fa fa-close');
-                    break;
+    let icon = document.getElementById(`icon${change.index}`);
     
-                case Player.O:
-                    icon.style.opacity = 0;
-                    icon.setAttribute('class', 'fa fa-circle-o');
-                    break;
-            }
-        }
-    } else if (change === Player.noPlayer) {
-        endGame();
+    switch (change.player) {
+        case Player.X:
+            icon.setAttribute('class', 'fa fa-close');
+            break;
+
+        case Player.O:
+            icon.setAttribute('class', 'fa fa-circle-o');
+            break;
     }
+
+    icon.style.opacity = 1;
 }
 
 function logIn() {
     let username = document.getElementById('username');
 
-    // TODO: username only a-zA-Z0-9
-
-    if (username.value && !busy) {
+    if (username.value && !busy && !/[^a-z0-9]/i.test(username.value)) {
         busy = true;
 
         firebase.database().ref('users').once('value').then(snapshotUsers => {
@@ -451,7 +451,8 @@ function challenge() {
                                     opponent.value = '';
                                 }, 200);
 
-                                firebase.database().ref(`${game}`).on('child_changed', drawField);
+                                firebase.database().ref(`${game}`).on('child_changed', endGame);
+                                firebase.database().ref(`${game}/field`).on('child_changed', drawField);
 
                                 busy = false;
                             }).catch(error => {
@@ -478,22 +479,24 @@ function challenge() {
     }
 }
 
-function endGame() {
-    let winnerDiv = document.getElementById('winner');
+function endGame(snapshotChange) {
+    if (snapshotChange.val() === Player.noPlayer) {
+        let winnerDiv = document.getElementById('winner');
 
-    firebase.database().ref(`${game}/winner`).once('value').then(snapshot => {
-        let winner = snapshot.val();
+        firebase.database().ref(`${game}/winner`).once('value').then(snapshotWinner => {
+            let winner = snapshotWinner.val();
 
-        if (winner === Player.noPlayer) {
-            winnerDiv.textContent = 'Draw!';
-        } else if (winner === player) {
-            winnerDiv.textContent = `${firebase.auth().currentUser.displayName} won!`;
-        } else {
-            winnerDiv.textContent = `${opponentUsername} won!`;
-        }
-    }).catch(error => {
-        console.error(error.message);
-    });
+            if (winner === Player.noPlayer) {
+                winnerDiv.textContent = 'Draw!';
+            } else if (winner === player) {
+                winnerDiv.textContent = `${firebase.auth().currentUser.displayName} won!`;
+            } else {
+                winnerDiv.textContent = `${opponentUsername} won!`;
+            }
+        }).catch(error => {
+            console.error(error.message);
+        });
 
-    winnerDiv.style.display = 'block';
+        winnerDiv.style.display = 'block';
+    }
 }

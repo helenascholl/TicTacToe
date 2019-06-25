@@ -185,6 +185,7 @@ i {
 i {
     color: #d8d8d8;
     font-size: 3vmin;
+    transition: 200ms opacity;
 }
 
 /* TODO: custom scrollbar */

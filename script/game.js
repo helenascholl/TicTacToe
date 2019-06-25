@@ -13,7 +13,10 @@ class Game {
         this.field = [];
 
         for (let i = 0; i < 9; i++) {
-            this.field[i] = Player.noPlayer;
+            this.field[i] = {
+                index: i,
+                player: Player.noPlayer
+            };
         }
     }
 }
